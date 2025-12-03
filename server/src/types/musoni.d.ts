@@ -71,6 +71,7 @@ export interface LoanResponseModel {
   termFrequency?: number;
   numberOfRepayments?: number;
   repaymentEvery?: number;
+  inArrears?: boolean;
   
   // Fields populated when associations=summary,repaymentSchedule,transactions
   summary?: {
