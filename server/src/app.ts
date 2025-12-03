@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import apiRoutes from './routes/api.routes';
 
 // Load environment variables
 dotenv.config();
@@ -17,6 +18,9 @@ app.use(cors({
 
 // Body Parser
 app.use(express.json());
+
+// API Routes
+app.use('/api', apiRoutes);
 
 // Health Check Route
 app.get('/health', (req: Request, res: Response) => {
