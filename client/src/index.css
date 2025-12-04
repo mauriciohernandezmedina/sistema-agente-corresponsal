@@ -1,0 +1,49 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .receipt-modal, .receipt-modal * {
+    visibility: visible;
+  }
+
+  .receipt-modal {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Hide modal footer (buttons) when printing */
+  .ant-modal-footer {
+    display: none !important;
+  }
+  
+  /* Hide modal close button */
+  .ant-modal-close {
+    display: none !important;
+  }
+
+  /* Ensure content is centered and clean */
+  #receipt-content {
+    width: 100%;
+    max-width: 80mm; /* Typical receipt width */
+    margin: 0 auto;
+    border: 1px solid #000;
+    padding: 10px;
+  }
+}

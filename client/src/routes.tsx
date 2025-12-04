@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import LoanDetail from './pages/LoanDetail';
 import MainLayout from './layouts/MainLayout';
 
 const ProtectedRoute = () => {
@@ -20,9 +21,8 @@ const AppRoutes: React.FC = () => {
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        {/* Placeholder for Loan Detail route mentioned in prompt */}
-        <Route path="/loan/:id" element={<div>Detalle de Préstamo (Pendiente)</div>} />
-        <Route path="/client/:id" element={<div>Detalle de Cliente (Pendiente)</div>} />
+        <Route path="/loan/:id" element={<LoanDetail />} />
+        <Route path="/client/:id" element={<Navigate to="/dashboard" replace />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
