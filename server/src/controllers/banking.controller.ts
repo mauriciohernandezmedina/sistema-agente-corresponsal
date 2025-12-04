@@ -32,6 +32,20 @@ export class BankingController {
     }
   }
 
+  static async getClientLoans(req: Request, res: Response) {
+    try {
+      const { clientId } = req.params;
+      if (!clientId) {
+        return res.status(400).json({ success: false, message: 'Client ID is required' });
+      }
+      const loans = await musoniService.getClientLoans(Number(clientId));
+      return res.status(200).json({ success: true, data: loans });
+    } catch (error) {
+      console.error('Get client loans error:', error);
+      return res.status(500).json({ success: false, message: 'Error fetching client loans' });
+    }
+  }
+
   static async getLoanDetail(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -74,7 +88,7 @@ export class BankingController {
   static async makeRepayment(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { transactionDate, transactionAmount, note } = req.body;
+      const { transactionDate, transactionAmount, note, receiptNumber } = req.body;
 
       if (!id || !transactionDate || !transactionAmount) {
         return res.status(400).json({
@@ -86,7 +100,8 @@ export class BankingController {
       const result = await musoniService.processRepayment(Number(id), {
         transactionDate,
         transactionAmount,
-        note
+        note,
+        receiptNumber
       });
 
       // Fetch full transaction details for the receipt

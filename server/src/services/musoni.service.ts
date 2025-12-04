@@ -42,28 +42,54 @@ export class MusoniService {
     }
   }
 
-  async searchClients(query: string): Promise<ClientResponseModel[]> {
+  async getClientLoans(clientId: number): Promise<LoanResponseModel[]> {
     if (process.env.USE_MOCK_API === 'true') {
-      const mockClients: ClientResponseModel[] = [
+      return this.mockDelay([
         {
-          id: 1,
-          firstname: 'Juan',
-          lastname: 'Perez',
-          displayname: 'Juan Perez',
-          active: true,
+          id: 101,
+          accountNo: 'LOAN-001',
           status: { id: 300, code: 'active', value: 'Active' },
-          mobileNo: '1234567890',
-          accountNo: '000000001'
+          clientId: clientId,
+          loanProductName: 'Personal Loan',
+          principal: 1000
         },
         {
-          id: 2,
-          firstname: 'Maria',
-          lastname: 'Gomez',
-          displayname: 'Maria Gomez',
-          active: true,
+          id: 102,
+          accountNo: 'LOAN-002',
           status: { id: 300, code: 'active', value: 'Active' },
-          mobileNo: '0987654321',
-          accountNo: '000000002'
+          clientId: clientId,
+          loanProductName: 'Business Loan',
+          principal: 5000
+        }
+      ]);
+    }
+    try {
+      const response = await musoniApi.get<any>(`/clients/${clientId}/accounts`);
+      return response.data.loanAccounts || [];
+    } catch (error) {
+      console.error(`Error getting loans for client ${clientId}:`, error);
+      return [];
+    }
+  }
+
+  async searchClients(query: string): Promise<any[]> {
+    if (process.env.USE_MOCK_API === 'true') {
+      const mockClients = [
+        {
+          entityType: 'CLIENT',
+          id: 1,
+          displayname: 'Juan Perez',
+          accountNo: '000000001',
+          status: { value: 'Active' }
+        },
+        {
+          entityType: 'LOAN',
+          id: 101,
+          accountNo: 'LOAN-001',
+          clientId: 1,
+          displayname: 'Juan Perez',
+          loanProductName: 'Personal Loan',
+          status: { value: 'Active' }
         }
       ];
       return this.mockDelay(mockClients);
@@ -76,40 +102,44 @@ export class MusoniService {
         musoniApi.get<any>('/loans', { params: { search: query } })
       ]);
 
+      const results: any[] = [];
+
       // Process Clients Response
-      let clients: ClientResponseModel[] = [];
+      let clientsData: any[] = [];
       if (clientsResponse.data.pageItems) {
-        clients = clientsResponse.data.pageItems;
+        clientsData = clientsResponse.data.pageItems;
       } else if (Array.isArray(clientsResponse.data)) {
-        clients = clientsResponse.data;
+        clientsData = clientsResponse.data;
       }
 
-      // Process Loans Response to find associated clients
-      const loansData = loansResponse.data.pageItems || (Array.isArray(loansResponse.data) ? loansResponse.data : []);
-      const clientIdsFromLoans = new Set<number>();
-      
-      loansData.forEach((loan: any) => {
-        if (loan.clientId) {
-          clientIdsFromLoans.add(loan.clientId);
-        }
+      clientsData.forEach(client => {
+        results.push({
+          entityType: 'CLIENT',
+          id: client.id,
+          displayname: client.displayname || client.displayName,
+          accountNo: client.accountNo,
+          status: client.status,
+          externalId: client.externalId
+        });
       });
 
-      // Filter out clients we already found in the direct client search
-      const existingClientIds = new Set(clients.map(c => c.id));
-      const newClientIds = Array.from(clientIdsFromLoans).filter(id => !existingClientIds.has(id));
-
-      // Fetch details for clients found via loans but not in client search
-      if (newClientIds.length > 0) {
-        const additionalClients = await Promise.all(
-          newClientIds.map(id => this.getClientDetails(id).catch(() => null))
-        );
-        
-        additionalClients.forEach(client => {
-          if (client) clients.push(client);
+      // Process Loans Response
+      const loansData = loansResponse.data.pageItems || (Array.isArray(loansResponse.data) ? loansResponse.data : []);
+      
+      loansData.forEach((loan: any) => {
+        results.push({
+          entityType: 'LOAN',
+          id: loan.id,
+          accountNo: loan.accountNo,
+          clientId: loan.clientId,
+          displayname: loan.clientName,
+          loanProductName: loan.loanProductName,
+          status: loan.status,
+          externalId: loan.externalId
         });
-      }
+      });
 
-      return clients;
+      return results;
     } catch (error) {
       console.error('Error searching clients:', error);
       throw error;
@@ -170,14 +200,17 @@ export class MusoniService {
     }
   }
 
-  async processRepayment(loanId: number, payload: { transactionDate: string; transactionAmount: number; note?: string }): Promise<LoanTransactionCommandGenericSuccessResponse> {
+  async processRepayment(loanId: number, payload: { transactionDate: string; transactionAmount: number; note?: string; receiptNumber?: string }): Promise<LoanTransactionCommandGenericSuccessResponse> {
     const formattedDate = this.formatDate(payload.transactionDate);
+    const paymentTypeId = parseInt(process.env.PAYMENT_TYPE_ID || '10', 10);
     
     const apiPayload: PostLoansLoanIdTransactionsRequest = {
       ...payload,
       transactionDate: formattedDate,
       locale: 'en',
-      dateFormat: 'dd MMMM yyyy'
+      dateFormat: 'dd MMMM yyyy',
+      paymentTypeId: paymentTypeId,
+      receiptNumber: payload.receiptNumber || `REC-${Date.now()}`
     };
 
     if (process.env.USE_MOCK_API === 'true') {

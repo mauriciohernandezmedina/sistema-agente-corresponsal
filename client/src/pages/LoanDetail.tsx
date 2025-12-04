@@ -32,11 +32,12 @@ const LoanDetail: React.FC = () => {
 
   // Mutation for Repayment
   const repaymentMutation = useMutation({
-    mutationFn: async (values: { amount: number; note?: string }) => {
+    mutationFn: async (values: { amount: number; note?: string; receiptNumber?: string }) => {
       const response = await api.post(`/loans/${id}/transactions`, {
         transactionDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
         transactionAmount: values.amount,
         note: values.note || 'Pago en Corresponsal',
+        receiptNumber: values.receiptNumber
       });
       return response.data.data;
     },
@@ -73,7 +74,11 @@ const LoanDetail: React.FC = () => {
   });
 
   const onFinish = (values: any) => {
-    repaymentMutation.mutate({ amount: values.amount, note: values.note });
+    repaymentMutation.mutate({ 
+      amount: values.amount, 
+      note: values.note,
+      receiptNumber: values.receiptNumber 
+    });
   };
 
   const handleCloseReceipt = () => {
@@ -277,8 +282,16 @@ const LoanDetail: React.FC = () => {
                 />
               </Form.Item>
 
+              <Form.Item
+                label="No. Recibo"
+                name="receiptNumber"
+                rules={[{ required: true, message: 'Ingrese el número de recibo' }]}
+              >
+                <Input placeholder="REC-XXXXXX" />
+              </Form.Item>
+
               <Form.Item label="Nota / Referencia" name="note">
-                <Input placeholder="Opcional: Nro Recibo o Nota" />
+                <Input placeholder="Opcional: Nota adicional" />
               </Form.Item>
 
               <Divider />

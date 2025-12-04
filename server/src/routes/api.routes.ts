@@ -34,6 +34,9 @@ router.post('/auth/login', AuthController.login);
 // GET /clients - Protected
 router.get('/clients', authenticateToken, BankingController.searchClients);
 
+// GET /clients/:clientId/loans
+router.get('/clients/:clientId/loans', authenticateToken, BankingController.getClientLoans);
+
 // GET /loans/:id
 router.get('/loans/:id', authenticateToken, BankingController.getLoanDetail);
 

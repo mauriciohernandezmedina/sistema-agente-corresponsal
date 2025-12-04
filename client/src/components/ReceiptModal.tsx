@@ -64,6 +64,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ visible, onClose, data, loa
         <Descriptions column={1} size="small" bordered layout="horizontal">
           <Descriptions.Item label="Fecha">{dateStr}</Descriptions.Item>
           <Descriptions.Item label="Transacción #">{transactionId}</Descriptions.Item>
+          {data.receiptNumber && <Descriptions.Item label="Recibo #">{data.receiptNumber}</Descriptions.Item>}
           <Descriptions.Item label="Cliente">{clientName || 'N/A'}</Descriptions.Item>
           <Descriptions.Item label="Préstamo">{loanAccountNo || 'N/A'}</Descriptions.Item>
         </Descriptions>
