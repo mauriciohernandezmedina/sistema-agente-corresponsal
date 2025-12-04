@@ -1,60 +1,42 @@
 import React, { useState } from 'react';
-import { Input, Table, Tag, Button, Card, Space, Typography, message } from 'antd';
-import { SearchOutlined, UserOutlined } from '@ant-design/icons';
+import { Input, Table, Tag, Button, Card, Space, Typography, message, Modal, List, Skeleton } from 'antd';
+import { SearchOutlined, UserOutlined, BankOutlined, RightOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
-interface Client {
+interface SearchResult {
+  entityType: 'CLIENT' | 'LOAN';
   id: number;
-  firstname: string;
-  lastname: string;
   displayname: string;
   accountNo: string;
+  externalId?: string;
   status: {
     value: string;
     code: string;
   };
   mobileNo?: string;
+  officeName?: string;
+  loanProductName?: string;
 }
 
 const Dashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
-
-  const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['clients', searchTerm],
-    queryFn: async () => {
-      if (!searchTerm) return [];
-      const response = await api.get(`/clients?query=${searchTerm}`);
-      return response.data.data;
-    },
-    enabled: false, // Don't run automatically on mount
-  });
-
-  const handleSearch = (value: string) => {
-    if (!value.trim()) {
-      message.warning('Ingrese un término de búsqueda');
-      return;
-    }
-    setSearchTerm(value);
-    // Trigger the query manually after setting state is a bit tricky with enabled: false
-    // Better approach: let the effect of changing searchTerm trigger it if enabled was true, 
-    // but we want explicit search.
-    // We can just call refetch() immediately after setting state, but state update is async.
-    // Actually, react-query's refetch will use the current state in the queryFn closure if not careful,
-    // but since searchTerm is in queryKey, changing it creates a new query instance.
-    // Let's change strategy: enabled: !!searchTerm is better, but we want to wait for Enter.
-    // So we keep a separate state for the "active" search term.
-  };
   
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<SearchResult | null>(null);
+  const [clientLoans, setClientLoans] = useState<any[]>([]);
+  const [loadingLoans, setLoadingLoans] = useState(false);
+
   // We need a separate state to trigger the query only on Enter/Search click
   const [activeQuery, setActiveQuery] = useState('');
 
-  const { data: clients, isLoading: loadingClients, isError: isQueryError } = useQuery({
-    queryKey: ['clients', activeQuery],
+  const { data: searchResults, isLoading: loadingSearch, isError: isQueryError } = useQuery({
+    queryKey: ['search', activeQuery],
     queryFn: async () => {
       const response = await api.get(`/clients?query=${activeQuery}`);
       return response.data.data;
@@ -63,7 +45,7 @@ const Dashboard: React.FC = () => {
   });
 
   if (isQueryError) {
-    message.error('Error al buscar clientes');
+    message.error('Ocurrió un error al realizar la búsqueda. Intente nuevamente.');
   }
 
   const onSearch = (value: string) => {
@@ -71,17 +53,64 @@ const Dashboard: React.FC = () => {
     setActiveQuery(value);
   };
 
+  const handleSelect = async (record: SearchResult) => {
+    if (record.entityType === 'LOAN') {
+      navigate(`/loan/${record.id}`);
+    } else {
+      // It's a client, fetch loans and show modal
+      setSelectedClient(record);
+      setIsModalOpen(true);
+      setClientLoans([]);
+      setLoadingLoans(true);
+      try {
+        const res = await api.get(`/clients/${record.id}/loans`);
+        setClientLoans(res.data.data || []);
+      } catch (e) {
+        console.error(e);
+        message.error('Error al cargar préstamos del cliente');
+      } finally {
+        setLoadingLoans(false);
+      }
+    }
+  };
+
+  const handleLoanSelect = (loanId: number) => {
+    setIsModalOpen(false);
+    navigate(`/loan/${loanId}`);
+  };
+
   const columns = [
     {
-      title: 'Nombre Cliente',
-      dataIndex: 'displayname',
-      key: 'displayname',
-      render: (text: string) => <Space><UserOutlined /> {text}</Space>,
+      title: 'Tipo',
+      dataIndex: 'entityType',
+      key: 'entityType',
+      width: 100,
+      render: (type: string) => (
+        type === 'CLIENT' 
+          ? <Tag color="blue" icon={<UserOutlined />}>CLIENTE</Tag>
+          : <Tag color="orange" icon={<BankOutlined />}>PRÉSTAMO</Tag>
+      ),
     },
     {
-      title: 'No. Cuenta',
+      title: 'Nombre',
+      dataIndex: 'displayname',
+      key: 'displayname',
+      render: (text: string) => <Text strong>{text}</Text>,
+    },
+    {
+      title: 'No. Cuenta / Préstamo',
       dataIndex: 'accountNo',
       key: 'accountNo',
+    },
+    {
+      title: 'Producto / Oficina',
+      key: 'info',
+      render: (_: any, record: SearchResult) => (
+        <Space direction="vertical" size={0}>
+          {record.loanProductName && <Text type="secondary" style={{ fontSize: 12 }}>{record.loanProductName}</Text>}
+          {record.officeName && <Text type="secondary" style={{ fontSize: 12 }}>{record.officeName}</Text>}
+        </Space>
+      )
     },
     {
       title: 'Estado',
@@ -95,34 +124,11 @@ const Dashboard: React.FC = () => {
     {
       title: 'Acción',
       key: 'action',
-      render: (_: any, record: Client) => (
+      render: (_: any, record: SearchResult) => (
         <Button 
           type="primary" 
           size="small" 
-          onClick={() => navigate(`/loan/${record.id}`)} // Assuming we go to loan list or detail. 
-          // If the client has multiple loans, we might go to a client detail page first.
-          // But the prompt says "navigate to /loan/:id". 
-          // This implies the search result IS a loan or we pick a default loan?
-          // Or maybe the search returns Clients, and we assume we go to a view to see their loans.
-          // Let's assume for this task we navigate to a client detail or loan list.
-          // Wait, prompt says "navigate to /loan/:id". 
-          // If the list is CLIENTS, we don't have a loan ID yet.
-          // Maybe the search should return Loans? Or we pick the first loan?
-          // Let's assume we navigate to a client view that lists loans, OR the prompt meant /client/:id.
-          // Re-reading prompt: "Muestra columnas: Nombre, Identidad... Acción... navegar a /loan/:id".
-          // This is ambiguous if we are listing Clients.
-          // Let's assume we navigate to `/client/${record.id}` which will show loans, 
-          // OR for the sake of the specific instruction, maybe we just pass the client ID 
-          // and the next page handles finding the loan.
-          // Let's stick to the prompt literally but maybe use client ID as param if that's what's available.
-          // Actually, let's look at the backend. GET /clients returns ClientResponseModel.
-          // It has ID. Let's assume we go to a page to SELECT a loan for this client.
-          // But the route requested is /loan/:id. 
-          // I will navigate to `/client/${record.id}` for now as it makes more sense, 
-          // and we can implement the loan selection there.
-          // OR, if the prompt implies a direct flow, maybe I should just use the client ID 
-          // and the next page is "Loan Details" (which might be wrong if multiple loans).
-          // Let's use `/client/${record.id}` to be safe and logical.
+          onClick={() => handleSelect(record)}
         >
           Seleccionar
         </Button>
@@ -132,17 +138,16 @@ const Dashboard: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-      <Title level={4} style={{ marginBottom: 24 }}>Búsqueda de Clientes</Title>
+      <Title level={4} style={{ marginBottom: 24 }}>Búsqueda de Clientes y Préstamos</Title>
       
       <Card bordered={false} style={{ marginBottom: 24 }}>
         <Input.Search
-          placeholder="Buscar por nombre, identidad o cuenta..."
+          placeholder="Buscar por Nombre, Identidad, Cuenta o No. Préstamo"
           allowClear
-          enterButton="Buscar"
+          enterButton={<Button type="primary" icon={<SearchOutlined />}>Buscar</Button>}
           size="large"
           onSearch={onSearch}
-          autoFocus
-          loading={loadingClients}
+          loading={loadingSearch}
         />
       </Card>
 
@@ -153,13 +158,53 @@ const Dashboard: React.FC = () => {
       >
         <Table
           columns={columns}
-          dataSource={clients || []}
-          rowKey="id"
-          loading={loadingClients}
+          dataSource={searchResults || []}
+          rowKey={(record) => `${record.entityType}-${record.id}`}
+          loading={loadingSearch}
           pagination={{ pageSize: 10 }}
           locale={{ emptyText: 'No hay datos. Realice una búsqueda.' }}
         />
       </Card>
+
+      <Modal
+        title={`Préstamos de ${selectedClient?.displayname || 'Cliente'}`}
+        open={isModalOpen}
+        onCancel={() => setIsModalOpen(false)}
+        footer={null}
+        width={600}
+      >
+        {loadingLoans ? (
+          <Skeleton active />
+        ) : (
+          <List
+            itemLayout="horizontal"
+            dataSource={clientLoans}
+            locale={{ emptyText: 'Este cliente no tiene préstamos activos.' }}
+            renderItem={(item: any) => (
+              <List.Item
+                actions={[
+                  <Button type="link" onClick={() => handleLoanSelect(item.id)}>
+                    Seleccionar <RightOutlined />
+                  </Button>
+                ]}
+              >
+                <List.Item.Meta
+                  avatar={<BankOutlined style={{ fontSize: 24, color: '#1890ff' }} />}
+                  title={<Text strong>{item.loanProductName} - {item.accountNo}</Text>}
+                  description={
+                    <Space>
+                      <Tag color={item.status.value === 'Active' ? 'green' : 'default'}>
+                        {item.status.value}
+                      </Tag>
+                      <Text>Saldo: {item.summary?.principalOutstanding ?? 0} {item.currency?.code}</Text>
+                    </Space>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        )}
+      </Modal>
     </div>
   );
 };

@@ -11,6 +11,7 @@ const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
+    console.log('Auth failed: No token provided');
     return res.status(401).json({ success: false, message: 'Access token required' });
   }
 
@@ -18,6 +19,7 @@ const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
 
   jwt.verify(token, secret, (err: any, user: any) => {
     if (err) {
+      console.log('Auth failed: Invalid token', err.message);
       return res.status(403).json({ success: false, message: 'Invalid token' });
     }
     (req as any).user = user;
@@ -31,6 +33,9 @@ router.post('/auth/login', AuthController.login);
 // Banking Routes
 // GET /clients - Protected
 router.get('/clients', authenticateToken, BankingController.searchClients);
+
+// GET /clients/:clientId/loans
+router.get('/clients/:clientId/loans', authenticateToken, BankingController.getClientLoans);
 
 // GET /loans/:id
 router.get('/loans/:id', authenticateToken, BankingController.getLoanDetail);
