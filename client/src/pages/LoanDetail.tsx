@@ -50,7 +50,7 @@ const LoanDetail: React.FC = () => {
     },
     onError: (error: any) => {
       console.error(error);
-      message.error(error.response?.data?.message || 'Error al procesar el pago');
+      message.error(error.response?.data?.message || 'No se pudo procesar el pago. Intente nuevamente.');
     },
   });
 
@@ -69,7 +69,7 @@ const LoanDetail: React.FC = () => {
     },
     onError: (error: any) => {
       console.error(error);
-      message.error(error.response?.data?.message || 'Error al anular la transacción');
+      message.error(error.response?.data?.message || 'No se pudo anular la transacción. Intente nuevamente.');
     },
   });
 
@@ -93,7 +93,7 @@ const LoanDetail: React.FC = () => {
   if (isError || !loan) {
     return (
       <div style={{ textAlign: 'center', padding: 50 }}>
-        <Title level={4} type="danger">Error al cargar el préstamo</Title>
+        <Title level={4} type="danger">No se pudo cargar la información del préstamo</Title>
         <Button onClick={() => navigate('/dashboard')}>Volver</Button>
       </div>
     );

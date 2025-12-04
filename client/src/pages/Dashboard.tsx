@@ -45,7 +45,7 @@ const Dashboard: React.FC = () => {
   });
 
   if (isQueryError) {
-    message.error('Error al buscar');
+    message.error('Ocurrió un error al realizar la búsqueda. Intente nuevamente.');
   }
 
   const onSearch = (value: string) => {

@@ -12,7 +12,7 @@ export class BankingController {
       if (!query) {
         return res.status(400).json({
           success: false,
-          message: 'Query parameter "query" is required'
+          message: 'El parámetro de búsqueda es requerido.'
         });
       }
 
@@ -27,7 +27,7 @@ export class BankingController {
       console.error('Search clients error:', error);
       return res.status(500).json({
         success: false,
-        message: 'Error searching clients'
+        message: 'Error al buscar clientes. Por favor, intente nuevamente.'
       });
     }
   }
@@ -36,13 +36,13 @@ export class BankingController {
     try {
       const { clientId } = req.params;
       if (!clientId) {
-        return res.status(400).json({ success: false, message: 'Client ID is required' });
+        return res.status(400).json({ success: false, message: 'El ID del cliente es requerido.' });
       }
       const loans = await musoniService.getClientLoans(Number(clientId));
       return res.status(200).json({ success: true, data: loans });
     } catch (error) {
       console.error('Get client loans error:', error);
-      return res.status(500).json({ success: false, message: 'Error fetching client loans' });
+      return res.status(500).json({ success: false, message: 'Error al obtener los préstamos del cliente.' });
     }
   }
 
@@ -52,7 +52,7 @@ export class BankingController {
       if (!id) {
         return res.status(400).json({
           success: false,
-          message: 'Loan ID is required'
+          message: 'El ID del préstamo es requerido.'
         });
       }
 
@@ -80,7 +80,7 @@ export class BankingController {
       console.error('Get loan detail error:', error);
       return res.status(500).json({
         success: false,
-        message: 'Error fetching loan details'
+        message: 'Error al obtener los detalles del préstamo.'
       });
     }
   }
@@ -93,7 +93,7 @@ export class BankingController {
       if (!id || !transactionDate || !transactionAmount) {
         return res.status(400).json({
           success: false,
-          message: 'Missing required fields: id, transactionDate, transactionAmount'
+          message: 'Faltan datos requeridos: ID, fecha o monto.'
         });
       }
 
@@ -119,7 +119,7 @@ export class BankingController {
       console.error('Make repayment error:', error);
       return res.status(500).json({
         success: false,
-        message: 'Error processing repayment'
+        message: 'Error al procesar el pago. Verifique los datos e intente nuevamente.'
       });
     }
   }
@@ -132,7 +132,7 @@ export class BankingController {
       if (!id || !loanId || !amount) {
         return res.status(400).json({
           success: false,
-          message: 'Missing required fields: transaction id (in url), loanId and amount (in body)'
+          message: 'Faltan datos requeridos para la anulación.'
         });
       }
 
@@ -146,7 +146,7 @@ export class BankingController {
       console.error('Reverse payment error:', error);
       return res.status(500).json({
         success: false,
-        message: 'Error reversing payment'
+        message: 'Error al anular la transacción.'
       });
     }
   }
