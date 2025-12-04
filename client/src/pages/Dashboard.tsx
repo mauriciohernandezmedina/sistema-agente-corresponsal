@@ -135,13 +135,12 @@ const Dashboard: React.FC = () => {
       <Title level={4} style={{ marginBottom: 24 }}>Búsqueda de Clientes</Title>
       
       <Card bordered={false} style={{ marginBottom: 24 }}>
-        <Input.Search
-          placeholder="Buscar por nombre, identidad o cuenta..."
+                <Input.Search
+          placeholder="Buscar por Nombre, Identidad, Cuenta o No. Préstamo"
           allowClear
-          enterButton="Buscar"
+          enterButton={<Button type="primary" icon={<SearchOutlined />}>Buscar</Button>}
           size="large"
           onSearch={onSearch}
-          autoFocus
           loading={loadingClients}
         />
       </Card>

@@ -13,7 +13,7 @@ export class AuthController {
 
       if (username === validUser && password === validPass) {
         const secret = process.env.JWT_SECRET || 'default_secret_do_not_use_in_prod';
-        const token = jwt.sign({ username, role: 'admin' }, secret, { expiresIn: '1h' });
+        const token = jwt.sign({ username, role: 'admin' }, secret, { expiresIn: '24h' });
 
         return res.status(200).json({
           success: true,

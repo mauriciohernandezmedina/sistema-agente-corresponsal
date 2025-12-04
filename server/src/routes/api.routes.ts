@@ -11,6 +11,7 @@ const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
+    console.log('Auth failed: No token provided');
     return res.status(401).json({ success: false, message: 'Access token required' });
   }
 
@@ -18,6 +19,7 @@ const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
 
   jwt.verify(token, secret, (err: any, user: any) => {
     if (err) {
+      console.log('Auth failed: Invalid token', err.message);
       return res.status(403).json({ success: false, message: 'Invalid token' });
     }
     (req as any).user = user;

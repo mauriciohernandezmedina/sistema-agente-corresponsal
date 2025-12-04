@@ -21,6 +21,27 @@ export class MusoniService {
     return new Promise((resolve) => setTimeout(() => resolve(data), ms));
   }
 
+  async getClientDetails(clientId: number): Promise<ClientResponseModel> {
+    if (process.env.USE_MOCK_API === 'true') {
+      return this.mockDelay({
+        id: clientId,
+        firstname: 'Mock',
+        lastname: 'Client',
+        displayname: 'Mock Client ' + clientId,
+        active: true,
+        status: { id: 300, code: 'active', value: 'Active' },
+        accountNo: 'MOCK-' + clientId
+      });
+    }
+    try {
+      const response = await musoniApi.get<ClientResponseModel>(`/clients/${clientId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error getting client details for ${clientId}:`, error);
+      throw error;
+    }
+  }
+
   async searchClients(query: string): Promise<ClientResponseModel[]> {
     if (process.env.USE_MOCK_API === 'true') {
       const mockClients: ClientResponseModel[] = [
@@ -45,24 +66,50 @@ export class MusoniService {
           accountNo: '000000002'
         }
       ];
-      // Filter mock data if needed, or just return all for simplicity
       return this.mockDelay(mockClients);
     }
 
     try {
-      const response = await musoniApi.get<ClientResponseModel[]>('/clients', {
-        params: { displayName: query } // Assuming standard query param
-      });
-      // Musoni/Mifos often returns { pageItems: [...] } or just [...] depending on version.
-      // Assuming array based on return type, but handling potential wrapper object is safer in real world.
-      // For this task, I'll assume direct array or handle { pageItems: [] } if I knew the structure for sure.
-      // Given the type definition implies ClientResponseModel[], I'll assume the API returns that or I map it.
-      // Standard Fineract returns { pageItems: [...] }. Let's be safe and check if it has pageItems.
-      const data: any = response.data;
-      if (data.pageItems) {
-        return data.pageItems;
+      // Parallel search: Clients (by name/id/externalId) AND Loans (by accountNo)
+      const [clientsResponse, loansResponse] = await Promise.all([
+        musoniApi.get<any>('/clients', { params: { search: query } }),
+        musoniApi.get<any>('/loans', { params: { search: query } })
+      ]);
+
+      // Process Clients Response
+      let clients: ClientResponseModel[] = [];
+      if (clientsResponse.data.pageItems) {
+        clients = clientsResponse.data.pageItems;
+      } else if (Array.isArray(clientsResponse.data)) {
+        clients = clientsResponse.data;
       }
-      return Array.isArray(data) ? data : [];
+
+      // Process Loans Response to find associated clients
+      const loansData = loansResponse.data.pageItems || (Array.isArray(loansResponse.data) ? loansResponse.data : []);
+      const clientIdsFromLoans = new Set<number>();
+      
+      loansData.forEach((loan: any) => {
+        if (loan.clientId) {
+          clientIdsFromLoans.add(loan.clientId);
+        }
+      });
+
+      // Filter out clients we already found in the direct client search
+      const existingClientIds = new Set(clients.map(c => c.id));
+      const newClientIds = Array.from(clientIdsFromLoans).filter(id => !existingClientIds.has(id));
+
+      // Fetch details for clients found via loans but not in client search
+      if (newClientIds.length > 0) {
+        const additionalClients = await Promise.all(
+          newClientIds.map(id => this.getClientDetails(id).catch(() => null))
+        );
+        
+        additionalClients.forEach(client => {
+          if (client) clients.push(client);
+        });
+      }
+
+      return clients;
     } catch (error) {
       console.error('Error searching clients:', error);
       throw error;
@@ -159,18 +206,52 @@ export class MusoniService {
     }
   }
 
-  async reverseTransaction(loanId: number, trxId: number): Promise<any> {
+  async reverseTransaction(loanId: number, trxId: number, amount: number): Promise<any> {
     if (process.env.USE_MOCK_API === 'true') {
       return this.mockDelay({ status: 'success', resourceId: trxId });
     }
 
     try {
       // Standard Fineract/Mifos reversal endpoint
-      const response = await musoniApi.post(`/loans/${loanId}/transactions/${trxId}?command=undo`, {});
+      // Some versions require a note or transactionDate/dateFormat/locale even for undo
+      // The error log indicated transactionAmount is mandatory.
+      const payload = {
+        transactionDate: this.formatDate(new Date().toISOString()),
+        dateFormat: 'dd MMMM yyyy',
+        locale: 'en',
+        note: 'Reversal via Agent',
+        transactionAmount: 0
+      };
+      
+      const response = await musoniApi.post(`/loans/${loanId}/transactions/${trxId}?command=undo`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error(`Error reversing transaction ${trxId} for loan ${loanId}:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  async getTransaction(loanId: number, transactionId: number): Promise<any> {
+    if (process.env.USE_MOCK_API === 'true') {
+      return this.mockDelay({
+        id: transactionId,
+        type: { value: 'Repayment' },
+        date: [2023, 1, 1],
+        amount: 100,
+        principalPortion: 80,
+        interestPortion: 20,
+        feeChargesPortion: 0,
+        penaltyChargesPortion: 0,
+        currency: { code: 'HNL' }
+      });
+    }
+
+    try {
+      const response = await musoniApi.get(`/loans/${loanId}/transactions/${transactionId}`);
       return response.data;
     } catch (error) {
-      console.error(`Error reversing transaction ${trxId} for loan ${loanId}:`, error);
-      throw error;
+      console.error(`Error getting transaction ${transactionId} for loan ${loanId}:`, error);
+      return { id: transactionId };
     }
   }
 }

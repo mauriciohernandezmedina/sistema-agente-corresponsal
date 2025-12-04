@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Row, Col, Card, Statistic, Button, InputNumber, 
-  Input, Form, message, Spin, Typography, Divider, Tag, Descriptions 
+  Input, Form, message, Spin, Typography, Divider, Tag, Descriptions, Table, Popconfirm 
 } from 'antd';
-import { ArrowLeftOutlined, DollarOutlined, CalendarOutlined, WarningOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, DollarOutlined, CalendarOutlined, WarningOutlined, HistoryOutlined, UndoOutlined, PrinterOutlined } from '@ant-design/icons';
 import api from '../api/axios';
 import ReceiptModal from '../components/ReceiptModal';
 
@@ -53,6 +53,25 @@ const LoanDetail: React.FC = () => {
     },
   });
 
+  // Mutation for Reversal
+  const reverseMutation = useMutation({
+    mutationFn: async (params: { transactionId: number, amount: number }) => {
+      const response = await api.post(`/transactions/${params.transactionId}/reverse`, {
+        loanId: Number(id),
+        amount: params.amount
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      message.success('Transacción anulada correctamente');
+      queryClient.invalidateQueries({ queryKey: ['loan', id] });
+    },
+    onError: (error: any) => {
+      console.error(error);
+      message.error(error.response?.data?.message || 'Error al anular la transacción');
+    },
+  });
+
   const onFinish = (values: any) => {
     repaymentMutation.mutate({ amount: values.amount, note: values.note });
   };
@@ -90,6 +109,75 @@ const LoanDetail: React.FC = () => {
       nextDueDate = new Date(d[0], d[1] - 1, d[2]).toLocaleDateString();
     }
   }
+
+  const transactionColumns = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80,
+    },
+    {
+      title: 'Fecha',
+      dataIndex: 'date',
+      key: 'date',
+      render: (date: number[]) => new Date(date[0], date[1] - 1, date[2]).toLocaleDateString(),
+    },
+    {
+      title: 'Tipo',
+      dataIndex: ['type', 'value'],
+      key: 'type',
+    },
+    {
+      title: 'Monto',
+      dataIndex: 'amount',
+      key: 'amount',
+      render: (amount: number) => (
+        <Text strong>{amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencyCode}</Text>
+      ),
+    },
+    {
+      title: 'Estado',
+      key: 'status',
+      render: (_: any, record: any) => (
+        record.manuallyReversed ? <Tag color="red">Reversado</Tag> : <Tag color="green">Aplicado</Tag>
+      ),
+    },
+    {
+      title: 'Acción',
+      key: 'action',
+      render: (_: any, record: any) => {
+        // Allow reversal only if it's a repayment and not already reversed
+        const isReversible = record.type.repayment && !record.manuallyReversed;
+        
+        return (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button 
+              size="small" 
+              icon={<PrinterOutlined />} 
+              onClick={() => {
+                setLastTransaction(record);
+                setReceiptVisible(true);
+              }}
+              title="Reimprimir Recibo"
+            />
+            
+            {isReversible && (
+              <Popconfirm
+                title="¿Anular transacción?"
+                description="Esta acción revertirá el pago y actualizará el saldo."
+                onConfirm={() => reverseMutation.mutate({ transactionId: record.id, amount: record.amount })}
+                okText="Sí, Anular"
+                cancelText="Cancelar"
+              >
+                <Button size="small" danger icon={<UndoOutlined />} title="Anular Transacción" />
+              </Popconfirm>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -211,6 +299,23 @@ const LoanDetail: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      <Divider />
+
+      <Card 
+        title={<span><HistoryOutlined /> Historial de Transacciones</span>} 
+        bordered={false}
+        style={{ marginTop: 24 }}
+      >
+        <Table 
+          dataSource={loan.transactions || []} 
+          columns={transactionColumns} 
+          rowKey="id"
+          pagination={{ pageSize: 5 }}
+          size="small"
+          locale={{ emptyText: 'No hay transacciones registradas' }}
+        />
+      </Card>
 
       <ReceiptModal 
         visible={receiptVisible} 
