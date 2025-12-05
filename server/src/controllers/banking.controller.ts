@@ -49,6 +49,8 @@ export class BankingController {
   static async getLoanDetail(req: Request, res: Response) {
     try {
       const { id } = req.params;
+      const user = (req as any).user; // Usuario autenticado del JWT
+      
       if (!id) {
         return res.status(400).json({
           success: false,
@@ -58,17 +60,32 @@ export class BankingController {
 
       const loan = await musoniService.getLoanDetails(Number(id));
 
-      // Filter transactions: Only show transactions from TODAY
+      // Filter transactions: Only show transactions from TODAY and made by CURRENT USER
       // This is a requirement for the Correspondent Agent: "Only see what he did during the day"
       if (loan.transactions && Array.isArray(loan.transactions)) {
         const today = new Date();
         const todayStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`; // YYYY-M-D (matches Musoni array parts roughly)
+        const currentUsername = user?.username || 'unknown';
 
         loan.transactions = loan.transactions.filter(trx => {
           if (!trx.date || !Array.isArray(trx.date)) return false;
-          // trx.date is [YYYY, MM, DD]
+          
+          // Check if transaction is from today
           const trxDateStr = `${trx.date[0]}-${trx.date[1]}-${trx.date[2]}`;
-          return trxDateStr === todayStr;
+          const isToday = trxDateStr === todayStr;
+          
+          // Check if transaction was made by current user
+          // Look for username in multiple possible fields
+          const submittedBy = (trx as any).submittedByUsername || '';
+          const createdBy = (trx as any).createdByUsername || '';
+          const noteText = (trx as any).note || '';
+          
+          const isMadeByUser = 
+            submittedBy === currentUsername ||
+            createdBy === currentUsername ||
+            noteText.includes(`[Usuario: ${currentUsername}]`);
+          
+          return isToday && isMadeByUser;
         });
       }
 
@@ -89,6 +106,7 @@ export class BankingController {
     try {
       const { id } = req.params;
       const { transactionDate, transactionAmount, note, receiptNumber } = req.body;
+      const user = (req as any).user; // Usuario autenticado del JWT
 
       if (!id || !transactionDate || !transactionAmount) {
         return res.status(400).json({
@@ -97,10 +115,13 @@ export class BankingController {
         });
       }
 
+      // Agregar username a la nota para identificar quién hizo el pago
+      const noteWithUser = note ? `${note} [Usuario: ${user?.username || 'unknown'}]` : `Pago en Corresponsal [Usuario: ${user?.username || 'unknown'}]`;
+
       const result = await musoniService.processRepayment(Number(id), {
         transactionDate,
         transactionAmount,
-        note,
+        note: noteWithUser,
         receiptNumber
       });
 
