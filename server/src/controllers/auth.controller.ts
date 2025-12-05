@@ -13,11 +13,28 @@ export class AuthController {
 
       if (username === validUser && password === validPass) {
         const secret = process.env.JWT_SECRET || 'default_secret_do_not_use_in_prod';
-        const token = jwt.sign({ username, role: 'admin' }, secret, { expiresIn: '24h' });
+        
+        // Información del usuario y ubicación del banco corresponsal
+        // En producción, esta información vendría de una base de datos
+        const userInfo = {
+          username,
+          role: 'admin',
+          agencia: process.env.AGENCIA_NOMBRE || 'Agencia Principal',
+          sucursal: process.env.SUCURSAL_NOMBRE || 'Sucursal Central',
+          codigoAgencia: process.env.AGENCIA_CODIGO || 'AG001',
+          codigoSucursal: process.env.SUCURSAL_CODIGO || 'SUC001'
+        };
+        
+        const token = jwt.sign(userInfo, secret, { expiresIn: '24h' });
 
         return res.status(200).json({
           success: true,
-          token
+          token,
+          user: {
+            username: userInfo.username,
+            agencia: userInfo.agencia,
+            sucursal: userInfo.sucursal
+          }
         });
       }
 

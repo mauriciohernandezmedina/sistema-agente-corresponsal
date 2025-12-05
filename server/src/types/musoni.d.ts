@@ -210,9 +210,6 @@ export interface LoanResponseModel {
     overpaymentPortion?: number;
     unrecognizedIncomePortion?: number;
     submittedOnDate?: number[];
-    submittedByUsername?: string;
-    createdByUsername?: string;
-    note?: string;
     manuallyReversed?: boolean;
   }>;
 }
