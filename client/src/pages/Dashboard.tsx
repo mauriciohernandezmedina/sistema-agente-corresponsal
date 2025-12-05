@@ -196,7 +196,7 @@ const Dashboard: React.FC = () => {
                       <Tag color={item.status.value === 'Active' ? 'green' : 'default'}>
                         {item.status.value}
                       </Tag>
-                      <Text>Saldo: {item.summary?.principalOutstanding ?? 0} {item.currency?.code}</Text>
+                      <Text>Saldo: {Number(item.loanBalance ?? 0).toLocaleString('es-HN', { minimumFractionDigits: 2 })} {item.currency?.code}</Text>
                     </Space>
                   }
                 />
