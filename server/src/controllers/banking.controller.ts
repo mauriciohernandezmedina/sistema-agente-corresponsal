@@ -99,7 +99,7 @@ export class BankingController {
       }
 
       // Agregar información del usuario, agencia y sucursal para fines informativos
-      const infoAdicional = `\n[Usuario: ${user?.username || 'N/A'} | Agencia: ${user?.agencia || 'N/A'} (${user?.codigoAgencia || 'N/A'}) | Sucursal: ${user?.sucursal || 'N/A'} (${user?.codigoSucursal || 'N/A'})]`;
+      const infoAdicional = ` [Usuario: ${user?.username || 'N/A'} | Agencia: ${user?.agencia || 'N/A'} (${user?.codigoAgencia || 'N/A'}) | Sucursal: ${user?.sucursal || 'N/A'} (${user?.codigoSucursal || 'N/A'})]`;
       const notaCompleta = note ? `${note}${infoAdicional}` : `Pago en Corresponsal${infoAdicional}`;
 
       const result = await musoniService.processRepayment(Number(id), {
@@ -133,6 +133,7 @@ export class BankingController {
     try {
       const { id } = req.params; // Transaction ID
       const { loanId, amount } = req.body;
+      const user = (req as any).user; // Usuario autenticado del JWT
 
       if (!id || !loanId || !amount) {
         return res.status(400).json({
@@ -141,7 +142,7 @@ export class BankingController {
         });
       }
 
-      const result = await musoniService.reverseTransaction(Number(loanId), Number(id), Number(amount));
+      const result = await musoniService.reverseTransaction(Number(loanId), Number(id), Number(amount), user);
 
       return res.status(200).json({
         success: true,

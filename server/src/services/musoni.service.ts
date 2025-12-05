@@ -227,32 +227,48 @@ export class MusoniService {
       return this.mockDelay(mockResponse);
     }
 
+    console.log('Sending repayment payload to Musoni:', JSON.stringify(apiPayload, null, 2));
+
     try {
       const response = await musoniApi.post<LoanTransactionCommandGenericSuccessResponse>(
         `/loans/${loanId}/transactions?command=repayment`,
         apiPayload
       );
+      console.log('Repayment successful:', response.data);
       return response.data;
-    } catch (error) {
-      console.error(`Error processing repayment for loan ${loanId}:`, error);
+    } catch (error: any) {
+      console.error(`Error processing repayment for loan ${loanId}:`, error.message);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', JSON.stringify(error.response?.data, null, 2));
+      // Log detailed validation errors if available
+      if (error.response?.data?.errors) {
+        console.error('Validation errors:', JSON.stringify(error.response.data.errors, null, 2));
+      }
       throw error;
     }
   }
 
-  async reverseTransaction(loanId: number, trxId: number, amount: number): Promise<any> {
+  async reverseTransaction(loanId: number, trxId: number, amount: number, userInfo?: any): Promise<any> {
     if (process.env.USE_MOCK_API === 'true') {
-      return this.mockDelay({ status: 'success', resourceId: trxId });
+      return this.mockDelay({ resourceId: 999, changes: { reversedTransactionId: trxId } });
     }
 
     try {
       // Standard Fineract/Mifos reversal endpoint
       // Some versions require a note or transactionDate/dateFormat/locale even for undo
       // The error log indicated transactionAmount is mandatory.
+      
+      // Agregar información del usuario, agencia y sucursal para fines informativos
+      const infoAdicional = userInfo 
+        ? ` [Usuario: ${userInfo.username || 'N/A'} | Agencia: ${userInfo.agencia || 'N/A'} (${userInfo.codigoAgencia || 'N/A'}) | Sucursal: ${userInfo.sucursal || 'N/A'} (${userInfo.codigoSucursal || 'N/A'})]`
+        : '';
+      const notaReversa = `Reversión vía Corresponsal${infoAdicional}`;
+      
       const payload = {
         transactionDate: this.formatDate(new Date().toISOString()),
         dateFormat: 'dd MMMM yyyy',
         locale: 'en',
-        note: 'Reversal via Agent',
+        note: notaReversa,
         transactionAmount: 0
       };
       

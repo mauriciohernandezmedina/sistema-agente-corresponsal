@@ -222,6 +222,7 @@ export interface PostLoansLoanIdTransactionsRequest {
   paymentTypeId?: number;
   receiptNumber?: string;
   note?: string;
+  originChannel?: string;
   // Additional fields from BasePaymentDetailsProperties
   accountNumber?: string;
   checkNumber?: string;
