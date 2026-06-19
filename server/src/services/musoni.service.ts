@@ -171,6 +171,41 @@ export class MusoniService {
           totalOutstanding: 600,
           totalOverdue: 0
         },
+        repaymentSchedule: {
+          periods: [
+            {
+              period: 0,
+              dueDate: [2023, 1, 1],
+              principalDisbursed: 1000,
+              complete: true,
+              totalOutstandingForPeriod: 0
+            },
+            {
+              period: 1,
+              dueDate: [2023, 2, 1],
+              totalDueForPeriod: 100,
+              totalPaidForPeriod: 100,
+              complete: true,
+              totalOutstandingForPeriod: 0
+            },
+            {
+              period: 2,
+              dueDate: [2023, 3, 1],
+              totalDueForPeriod: 100,
+              totalPaidForPeriod: 0,
+              complete: false,
+              totalOutstandingForPeriod: 100
+            },
+            {
+              period: 3,
+              dueDate: [2023, 4, 1],
+              totalDueForPeriod: 100,
+              totalPaidForPeriod: 0,
+              complete: false,
+              totalOutstandingForPeriod: 100
+            }
+          ]
+        },
         transactions: [
           {
             id: 101,
@@ -191,7 +226,7 @@ export class MusoniService {
 
     try {
       const response = await musoniApi.get<LoanResponseModel>(`/loans/${loanId}`, {
-        params: { associations: 'all' }
+        params: { associations: 'repaymentSchedule,transactions,summary' }
       });
       return response.data;
     } catch (error) {

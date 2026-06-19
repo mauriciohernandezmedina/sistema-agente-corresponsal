@@ -86,6 +86,35 @@ const LoanDetail: React.FC = () => {
     setLastTransaction(null);
   };
 
+  const totalOutstanding = loan?.summary?.totalOutstanding || 0;
+  const totalOverdue = loan?.summary?.totalOverdue || 0;
+
+  // Find next due date and installment amount
+  let nextDueDate = 'N/A';
+  let nextInstallmentAmount = 0;
+
+  if (loan?.repaymentSchedule?.periods) {
+    const nextPeriod = loan.repaymentSchedule.periods.find((p: any) =>
+      p.totalOutstandingForPeriod > 0 || !p.complete
+    );
+
+    if (nextPeriod) {
+      nextInstallmentAmount = nextPeriod.totalOutstandingForPeriod || 0;
+      if (nextPeriod.dueDate) {
+        const d = nextPeriod.dueDate;
+        nextDueDate = new Date(d[0], d[1] - 1, d[2]).toLocaleDateString();
+      }
+    }
+  }
+
+  // Effect to update form when loan data changes
+  React.useEffect(() => {
+    if (loan) {
+      const defaultAmount = totalOverdue > 0 ? totalOverdue : nextInstallmentAmount;
+      form.setFieldsValue({ amount: defaultAmount });
+    }
+  }, [loan, totalOverdue, nextInstallmentAmount, form]);
+
   if (isLoading) {
     return <div style={{ textAlign: 'center', padding: 50 }}><Spin size="large" /></div>;
   }
@@ -99,21 +128,7 @@ const LoanDetail: React.FC = () => {
     );
   }
 
-  const totalOutstanding = loan.summary?.totalOutstanding || 0;
-  const totalOverdue = loan.summary?.totalOverdue || 0;
   const currencyCode = loan.currency?.code || 'HNL';
-  
-  // Find next due date (simplified logic)
-  // In a real scenario, iterate through repaymentSchedule.periods to find the first non-complete period
-  let nextDueDate = 'N/A';
-  if (loan.repaymentSchedule?.periods) {
-    const nextPeriod = loan.repaymentSchedule.periods.find((p: any) => !p.complete);
-    if (nextPeriod && nextPeriod.dueDate) {
-      // dueDate is array [yyyy, mm, dd]
-      const d = nextPeriod.dueDate;
-      nextDueDate = new Date(d[0], d[1] - 1, d[2]).toLocaleDateString();
-    }
-  }
 
   const transactionColumns = [
     {
@@ -205,7 +220,7 @@ const LoanDetail: React.FC = () => {
             </div>
 
             <Row gutter={16}>
-              <Col span={8}>
+              <Col span={6}>
                 <Statistic 
                   title="Saldo Total" 
                   value={totalOutstanding} 
@@ -214,7 +229,7 @@ const LoanDetail: React.FC = () => {
                   valueStyle={{ color: '#003eb3' }}
                 />
               </Col>
-              <Col span={8}>
+              <Col span={6}>
                 <Statistic 
                   title="Monto en Mora" 
                   value={totalOverdue} 
@@ -224,7 +239,16 @@ const LoanDetail: React.FC = () => {
                   suffix={totalOverdue > 0 ? <WarningOutlined /> : null}
                 />
               </Col>
-              <Col span={8}>
+              <Col span={6}>
+                <Statistic
+                  title="Cuota a Pagar"
+                  value={nextInstallmentAmount}
+                  precision={2}
+                  prefix={currencyCode}
+                  valueStyle={{ color: '#003eb3' }}
+                />
+              </Col>
+              <Col span={6}>
                 <Statistic 
                   title="Próximo Vencimiento" 
                   value={nextDueDate} 
