@@ -95,7 +95,7 @@ const LoanDetail: React.FC = () => {
 
   if (loan?.repaymentSchedule?.periods) {
     const nextPeriod = loan.repaymentSchedule.periods.find((p: any) =>
-      p.totalOutstandingForPeriod > 0 || !p.complete
+      p.totalOutstandingForPeriod > 0
     );
 
     if (nextPeriod) {
