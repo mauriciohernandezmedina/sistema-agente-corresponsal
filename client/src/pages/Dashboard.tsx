@@ -23,7 +23,6 @@ interface SearchResult {
 }
 
 const Dashboard: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   
   // Modal state
